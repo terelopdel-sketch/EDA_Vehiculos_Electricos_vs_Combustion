@@ -137,6 +137,58 @@ def mann_whitney_categorias(df, variable, categoria_col="Vehicle_Category"):
     print()
 
 
+def test_categorias(df, variable, grupos, categoria_col="Categoria", alfa=0.05):
+    """
+    Compara una variable numérica entre varias categorías con pruebas
+    no paramétricas:
+      1. Kruskal-Wallis para todas las categorías a la vez.
+      2. Mann-Whitney U por parejas con corrección de Bonferroni.
+
+    Parámetros
+    ----------
+    df : pd.DataFrame
+        Dataset a analizar.
+    variable : str
+        Variable numérica a comparar.
+    grupos : list
+        Categorías que entran en el contraste.
+    categoria_col : str
+        Columna que define los grupos. Por defecto 'Categoria'.
+    alfa : float
+        Nivel de significación global. Por defecto 0.05.
+
+    Retorna
+    -------
+    resultados : pd.DataFrame
+        Una fila por pareja con el estadístico U, el p-valor y si es
+        significativa tras la corrección de Bonferroni.
+
+    Ejemplo
+    -------
+    >>> test_categorias(df, 'Combined_MPG', ['Gasolina', 'Híbrido', 'Eléctrico'])
+    """
+    from itertools import combinations
+
+    muestras = {g: df.loc[df[categoria_col] == g, variable] for g in grupos}
+    h, p_kw = stats.kruskal(*muestras.values())
+    pares = list(combinations(grupos, 2))
+    alfa_corr = alfa / len(pares)
+
+    print(f"=== {variable} ===")
+    print(f"Kruskal-Wallis: H = {h:.1f} | p = {p_kw:.2e}")
+    print(f"Mann-Whitney U por parejas (Bonferroni: p < {alfa_corr:.4f})\n")
+
+    filas = []
+    for a, b in pares:
+        u, p = stats.mannwhitneyu(muestras[a], muestras[b], alternative="two-sided")
+        filas.append({"Pareja": f"{a} vs {b}", "U": round(u), "p": p,
+                      "Significativa": "Sí" if p < alfa_corr else "No"})
+    resultados = pd.DataFrame(filas)
+    print(resultados.to_string(index=False, formatters={"p": "{:.2e}".format}))
+    print()
+    return resultados
+
+
 # ──────────────────────────────────────────────
 # 4. HISTOGRAMA + BOXPLOT
 # ──────────────────────────────────────────────
